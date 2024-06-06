@@ -134,15 +134,16 @@ struct Helper {
 	print : PrintType,
 	allow_multi_edges : bool,
 	verification_total_weight : Option<usize>,
-	verification_edges: Option<Vec<(usize, usize)>>
+	verification_edges: Option<Vec<(usize, usize)>>,
+	iterations: usize
 }
 
 impl Helper {
 	fn new( num_vertices : usize, input_edges : Vec<EdgeWithWeight>, verify : bool,
-			print : PrintType, allow_multi_edges : bool ) -> Helper {
+			print : PrintType, allow_multi_edges : bool, iterations: usize) -> Helper {
 		let mut h = Helper{ num_vertices, input_edges, input_edge_weights : HashMap::new(), verify,
 				print, allow_multi_edges, verification_total_weight : None,
-				verification_edges : None };
+				verification_edges : None ,iterations};
 		for (u, v, weight) in &h.input_edges {
 			h.input_edge_weights.insert( (*u,*v),*weight );
 			h.input_edge_weights.insert( (*v,*u),*weight );
@@ -200,21 +201,32 @@ impl Helper {
 	fn benchmark_mst<TDynForest>( &mut self, impl_name : &str )
 		where TDynForest: DynamicForest<TWeight = MSTWeight>
 	{
-		let start = Instant::now();
-		let mut f = TDynForest::new( self.num_vertices );
-		let mst = compute_mst( &mut f, self.input_edges.iter().copied(), self.allow_multi_edges );
-		let dur = start.elapsed();
-		self.report_test_result( impl_name, dur );
-	
-		if self.verify {
-			let out_edges = mst.iter().map( |(u,v)| (u.index(), v.index()) ).collect();
-			let exp_total_weight = self.verification_total_weight.expect( "When verifying, you must first call mst_petgraph()!" );
-			let actual_total_weight = self.compute_total_weight( &out_edges );
-			assert_eq!( exp_total_weight, actual_total_weight,
-				"Computed incorrect weight, actual: {actual_total_weight}, expected: {exp_total_weight}" );
-			assert_eq!( self.verification_edges.as_ref().expect( "When verifying, you must first call mst_petgraph()!" ),
-				&normalize_edge_vector( &out_edges ) );
+		let mut durations: Vec<Duration> = vec![];
+		for _ in 0..self.iterations {
+
+			let start = Instant::now();
+
+			let mut f = TDynForest::new( self.num_vertices );
+			let mst = compute_mst( &mut f, self.input_edges.iter().copied(), self.allow_multi_edges );
+
+			let dur = start.elapsed();
+
+			durations.push(dur);
+
+			if self.verify {
+				let out_edges = mst.iter().map( |(u,v)| (u.index(), v.index()) ).collect();
+				let exp_total_weight = self.verification_total_weight.expect( "When verifying, you must first call mst_petgraph()!" );
+				let actual_total_weight = self.compute_total_weight( &out_edges );
+				assert_eq!( exp_total_weight, actual_total_weight,
+					"Computed incorrect weight, actual: {actual_total_weight}, expected: {exp_total_weight}" );
+				assert_eq!( self.verification_edges.as_ref().expect( "When verifying, you must first call mst_petgraph()!" ),
+					&normalize_edge_vector( &out_edges ) );
+			}
 		}
+		durations.sort();
+
+		self.report_test_result( impl_name, durations[self.iterations/2] );
+	
 	}
 }
 
@@ -270,7 +282,11 @@ struct CLI {
 	allow_multi_edges : bool,
 	
 	/// Implementations to benchmark. Include all but petgraph if omitted.
-	impls : Vec<ImplDesc>
+	impls : Vec<ImplDesc>,
+
+	/// Number of samples taken when measuring execution time 
+	#[arg(long, default_value_t = 1)]
+	iterations : usize,
 }
 
 
@@ -337,7 +353,7 @@ fn main() {
 	}
 	
 	let mut helper = Helper::new( num_vertices, input_edges, cli.verify, print,
-			cli.allow_multi_edges );
+			cli.allow_multi_edges, cli.iterations );
 	
 	helper.mst_petgraph( true );
 	for imp in &impls {
