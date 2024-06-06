@@ -54,7 +54,7 @@ def as_incremental_msf( edges : Iterable[OGBLCollabEdge], out : TextIO ) -> None
 
 	max_weight = max( e.weight for e in edges )
 
-	out.write( "c Generated from ogbl-collab dataset\n" )
+	#out.write( "c Generated from ogbl-collab dataset\n" )
 	out.write( f"mst {len(authors)} {len(edges)}\n" )
 
 	for e in edges :
