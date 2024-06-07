@@ -68,7 +68,7 @@ def main() :
 	heavy_es = [e for e in es if e.weight > 1]
 	print( f"{len(heavy_es)} heavy edges" )
 
-	with open( "incremental_mst.txt", "w" ) as fp :
+	with open( "ogbl-collab.txt", "w" ) as fp :
 		as_incremental_msf( aggregate_ogbl_collab( es ), fp )
 
 	print( "Done." )
