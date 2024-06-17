@@ -24,16 +24,16 @@ const ZIPF_P : f64 = 1.0;
 #[derive( Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum )]
 enum NodeDistribution {
 	Uniform,
-	PowL,
-	PowLQuery
+	Zipf,
+	ZipfQuery
 }
 
 impl Display for NodeDistribution {
 	fn fmt( &self, f: &mut Formatter<'_> ) -> std::fmt::Result {
 		write!( f, "{}", match self {
 			Self::Uniform => "uniform",
-			Self::PowL => "power law",
-			Self::PowLQuery => "power law only queries"
+			Self::Zipf => "power law",
+			Self::ZipfQuery => "power law only queries"
 		} )
 	}
 }
@@ -80,7 +80,7 @@ pub fn transform_into_queries<TWeight : MonoidWeight, TRng : Rng>(
 			let (x, y) = w.unwrap_edge();
 			if rng.gen_bool( weight_query_prob ) {
 				match dist {
-					NodeDistribution::PowLQuery => {
+					NodeDistribution::ZipfQuery => {
 						let mut vertices: Vec<_> = (0..num_nodes).collect();
 						vertices[..].shuffle(rng);
 						let dist = zipf::ZipfDistribution::new( num_nodes-1, ZIPF_P).unwrap();
@@ -132,7 +132,7 @@ impl<TWeight> Helper<TWeight>
 
 		//Generate node pairs (correspodns to generate_queries_with_dist_call)
 		let node_pairs: Vec<_> = match(node_dist) {
-			NodeDistribution::PowL => {
+			NodeDistribution::Zipf => {
 				let mut vertices: Vec<_> = (0..num_nodes).collect();
 				vertices[..].shuffle(&mut rng);
 				let dist = zipf::ZipfDistribution::new( num_nodes-1, ZIPF_P).unwrap();
